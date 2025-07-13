@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tạo mã QR siêu xịn</title>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr"></script>
+  <style>
+    body {
+      font-family: 'Quicksand', sans-serif;
+      background: #f2f2f2;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 500px;
+      text-align: center;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+      margin-bottom: 15px;
+    }
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 5px;
+      background: #6c63ff;
+      color: white;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .picker-label {
+      margin-top: 10px;
+      font-weight: 600;
+    }
+    #loading {
+      display: none;
+      color: #888;
+      margin-top: 15px;
+    }
+    #error {
+      color: red;
+      display: none;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    #qr-image {
+      margin-top: 20px;
+      max-width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><i class="fa-solid fa-qrcode icon"></i> Tạo mã QR cực xịn by Việt Anh</h1>
+    <form id="qrForm">
+      <input type="text" name="text" id="text" placeholder="Nhập nội dung hoặc link..." required />
+      <div class="picker-label">Chọn màu mã QR:</div>
+      <div id="color-picker"></div>
+      <input type="hidden" name="color" id="color" value="#000000" />
+      <button type="submit" id="createBtn"><i class="fa-solid fa-wand-magic-sparkles icon"></i> Tạo mã QR</button>
+      <button type="button" onclick="downloadQR()"><i class="fa-solid fa-download icon"></i> Tải mã QR</button>
+    </form>
+    <div id="loading">Đang tạo mã QR... <i class="fa-solid fa-spinner fa-spin"></i></div>
+    <div id="error">Vui lòng nhập nội dung trước khi tạo mã QR!</div>
+    <div id="preview">
+      <img id="qr-image" src="" alt="QR sẽ hiện ở đây" hidden />
+    </div>
+    <footer style="margin-top: 40px; font-size: 14px; color: #666; font-style: italic;">
+  © 2025 VanhDev — Forged in code, tempered by caffeine. Steal this? You're already tracked.
+</footer>
+  </div>
+  <script>
+    const form = document.getElementById('qrForm');
+    const qrImage = document.getElementById('qr-image');
+    const loading = document.getElementById('loading');
+    const error = document.getElementById('error');
+    const inputText = document.getElementById('text');
+    const createBtn = document.getElementById('createBtn');
+    const colorInput = document.getElementById('color');
+
+    const pickr = Pickr.create({
+      el: '#color-picker',
+      theme: 'classic',
+      default: '#000000',
+      swatches: [
+        '#000000', '#FF0000', '#00FF00', '#0000FF',
+        '#FFC0CB', '#800080', '#FFA500', '#00FFFF',
+        '#FFD700', '#FF69B4'
+      ],
+      components: {
+        preview: true,
+        opacity: true,
+        hue: true,
+        interaction: { hex: true, rgba: true, input: true, save: true }
+      }
+    });
+
+    pickr.on('save', (color) => {
+      colorInput.value = color.toHEXA().toString();
+      pickr.hide();
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = inputText.value.trim();
+      if (!text) {
+        error.style.display = 'block';
+        qrImage.hidden = true;
+        return;
+      }
+      error.style.display = 'none';
+      loading.style.display = 'block';
+      qrImage.hidden = true;
+
+      const originalBtnHTML = createBtn.innerHTML;
+      createBtn.disabled = true;
+      createBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin icon"></i>Đang tạo...';
+
+      const formData = new FormData(form);
+      try {
+        const response = await fetch('/generate', {
+          method: 'POST',
+          body: formData
+        });
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        qrImage.src = url;
+        qrImage.hidden = false;
+      } catch {
+        error.textContent = 'Đã xảy ra lỗi khi tạo mã QR 😢';
+        error.style.display = 'block';
+      } finally {
+        loading.style.display = 'none';
+        createBtn.disabled = false;
+        createBtn.innerHTML = originalBtnHTML;
+      }
+    });
+
+    function downloadQR() {
+      const qrSrc = qrImage.src;
+      if (!qrSrc) return alert('Hãy tạo mã QR trước đã ông tướng 😤');
+      const link = document.createElement('a');
+      link.href = qrSrc;
+      link.download = 'ma_qr.png';
+      link.click();
+    }
+  </script>
+</body>
+</html>
